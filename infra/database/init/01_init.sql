@@ -17,6 +17,16 @@ CREATE TABLE IF NOT EXISTS alert_logs (
     resolved_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS tools (
+    id BIGSERIAL PRIMARY KEY,
+    tool_code VARCHAR(64) NOT NULL UNIQUE,
+    tool_type VARCHAR(64) NOT NULL,
+    tool_name VARCHAR(128) NOT NULL,
+    stock INTEGER NOT NULL DEFAULT 0,
+    team VARCHAR(128) NOT NULL,
+    image_url TEXT NOT NULL DEFAULT ''
+);
+
 CREATE INDEX IF NOT EXISTS idx_detection_logs_site_time
     ON detection_logs (site_code, event_time DESC);
 
@@ -25,3 +35,17 @@ CREATE INDEX IF NOT EXISTS idx_detection_logs_result_json
 
 CREATE INDEX IF NOT EXISTS idx_alert_logs_site_time
     ON alert_logs (site_code, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_tools_code ON tools (tool_code);
+CREATE INDEX IF NOT EXISTS idx_tools_type ON tools (tool_type);
+CREATE INDEX IF NOT EXISTS idx_tools_name ON tools (tool_name);
+
+INSERT INTO tools (tool_code, tool_type, tool_name, stock, team, image_url)
+VALUES
+    ('01001', '电动工具', '冲击电钻', 6, '维修一组', ''),
+    ('09010', '手动工具', '手动扳手', 34, '维修一组', ''),
+    ('07003', '手动工具', '套筒扳手', 21, '维修一组', ''),
+    ('09006', '手动工具', '手动螺丝刀', 16, '维修二组', ''),
+    ('07012', '电动工具', '电动角磨机', 4, '维修二组', ''),
+    ('09003', '手动工具', '手动钢丝钳', 13, '维修一组', '')
+ON CONFLICT (tool_code) DO NOTHING;

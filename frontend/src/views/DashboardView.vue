@@ -1,8 +1,14 @@
 <template>
   <div class="page">
     <header class="header">
-      <h1>轨道交通 AIoT 工具监测平台</h1>
-      <el-tag :type="healthTagType">后端状态: {{ healthStatus }}</el-tag>
+      <div>
+        <h1>轨道交通检修工具监测平台</h1>
+        <div class="sub-head">当前用户：{{ session?.displayName }}（{{ session?.role }}）</div>
+      </div>
+      <div class="header-right">
+        <el-tag :type="healthTagType">后端状态: {{ healthStatus }}</el-tag>
+        <el-button type="danger" plain @click="logout">退出登录</el-button>
+      </div>
     </header>
 
     <section class="cards">
@@ -34,8 +40,13 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { http } from '../api/http'
+import { clearSession, getSession } from '../auth/session'
 
+const router = useRouter()
+const session = ref(getSession())
 const healthStatus = ref('unknown')
 const stats = ref({
   total_detections: 0,
@@ -75,9 +86,36 @@ const connectWebsocket = () => {
   }
 }
 
+const logout = () => {
+  clearSession()
+  ElMessage.success('已退出登录')
+  router.replace('/login')
+}
+
 onMounted(() => {
   loadHealth()
   loadStats()
   connectWebsocket()
 })
 </script>
+
+<style scoped>
+.sub-head {
+  margin-top: 8px;
+  color: #475569;
+  font-size: 14px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+</style>

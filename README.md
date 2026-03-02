@@ -3,7 +3,7 @@
 ## 1. 项目结构
 
 ```text
-demo/
+aiot-demo/
 ├── backend/                # FastAPI 后端
 ├── frontend/               # Vue3 + Vite 前端
 ├── infra/database/init/    # PostgreSQL 初始化 SQL
@@ -65,16 +65,52 @@ cp .env.example .env
 npm run dev
 ```
 
-## 6. 当前已配置能力
+## 6. 默认账号与凭据（开发环境）
+
+前端登录（http://localhost:5173）：
+
+- 管理员：`admin / Admin@123`
+- 值班员：`operator / Operator@123`
+
+EMQX 控制台（http://localhost:18083）：
+
+- 默认：`admin / public`
+
+PostgreSQL：
+
+- Host：`localhost`
+- Port：`5432`
+- Database：`aiot_monitor`
+- Username：`aiot_user`
+- Password：`aiot_password`
+
+Redis：
+
+- Host：`localhost`
+- Port：`6379`
+- Password：`(空)`
+
+## 7. 当前已配置能力
 
 - FastAPI 健康检查与统计 API
 - WebSocket 告警通道 `/ws/alerts`
 - MQTT 客户端订阅检测 Topic
 - PostgreSQL JSONB 数据表与索引初始化
 - Redis 服务基础可用
+- 前端登录页与路由鉴权
 
-## 7. 下一步建议
+## 8. 下一步建议
 
 - 接入 YOLO 边缘端真实上报格式
 - 在后端增加规则引擎与告警入库逻辑
 - 在前端增加 ECharts 实时图表面板
+
+## 9. 工具管理接口（已对接数据库）
+
+- `GET /api/v1/tools`：分页查询（支持 `tool_code/tool_type/tool_name/stock/page/page_size`）
+- `POST /api/v1/tools`：新增工具
+- `PUT /api/v1/tools/{tool_id}`：修改工具
+- `DELETE /api/v1/tools/{tool_id}`：删除单条
+- `POST /api/v1/tools/batch-delete`：批量删除（请求体：`{"ids":[1,2,3]}`）
+
+说明：数据库已新增 `tools` 表。后端启动时会自动建表并在空表时初始化示例数据。
