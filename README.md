@@ -43,6 +43,13 @@ docker compose up -d --build
 - 后端 Swagger：[http://localhost:8000/docs](http://localhost:8000/docs)
 - EMQX 控制台：[http://localhost:18083](http://localhost:18083)
 
+
+停服务：
+cd /Users/xiaoba/work/aiot-demo
+docker compose down
+下次恢复：
+docker compose up -d
+
 ## 5. 本地开发（非 Docker）
 
 ### 后端

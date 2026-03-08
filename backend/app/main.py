@@ -9,6 +9,7 @@ from app.models.base import Base
 from app import models  # noqa: F401
 from app.services.mqtt_service import MQTTService
 from app.services.tool_seed import seed_tools_if_empty
+from app.services.user_seed import seed_users_if_empty
 
 settings = get_settings()
 mqtt_service = MQTTService()
@@ -21,6 +22,7 @@ async def lifespan(_: FastAPI):
 
     async with SessionLocal() as session:
         await seed_tools_if_empty(session)
+        await seed_users_if_empty(session)
 
     mqtt_service.start()
     yield
