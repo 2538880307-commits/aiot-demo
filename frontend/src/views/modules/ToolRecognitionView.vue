@@ -115,7 +115,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { http } from '../../api/http'
 
-const typeOptions = ['电动工具', '手动工具', '测量工具', '安全设备']
+const typeOptions = ref([])
 
 const query = reactive({
   toolCode: '',
@@ -157,6 +157,15 @@ const rules = {
   toolName: [{ required: true, message: '请输入工具名称', trigger: 'blur' }],
   stock: [{ required: true, message: '请输入库存', trigger: 'change' }],
   team: [{ required: true, message: '请输入维护组', trigger: 'blur' }]
+}
+
+const fetchTypeOptions = async () => {
+  try {
+    const { data } = await http.get('/api/v1/settings/tool-types/options')
+    typeOptions.value = data.items || []
+  } catch {
+    typeOptions.value = ['电动工具', '手动工具', '测量工具', '安全设备']
+  }
 }
 
 const fetchTools = async () => {
@@ -366,8 +375,9 @@ const beforeImageUpload = async (rawFile) => {
   return false
 }
 
-onMounted(() => {
-  fetchTools()
+onMounted(async () => {
+  await fetchTypeOptions()
+  await fetchTools()
 })
 </script>
 
