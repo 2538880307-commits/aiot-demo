@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, WebSocket, WebSocketDisconnect
 from sqlalchemy import String, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,7 +23,7 @@ from app.schemas.user import (
 from app.services.ws_manager import ws_manager
 
 router = APIRouter()
-PERMISSION_OPTIONS = ['工具管理', '权限管理', '系统设置']
+PERMISSION_OPTIONS = ['工具管理', '工具计数', '权限管理', '系统设置']
 SETTING_PASSWORD_POLICY = 'password_policy'
 SETTING_ALERT_THRESHOLD = 'alert_threshold'
 
@@ -680,3 +680,17 @@ async def websocket_alerts(websocket: WebSocket):
             await websocket.send_json({'type': 'pong'})
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)
+
+@router.post('/api/v1/tool-count/detect')
+async def detect_tool_count(image: UploadFile = File(...)) -> dict:
+    if not image.filename:
+        raise HTTPException(status_code=400, detail='图片文件不能为空')
+
+    # 模型占位接口：已打通上传链路，后续替换为 YOLO 推理逻辑
+    return {
+        'ready': False,
+        'message': 'YOLO 模型尚未训练完成，当前返回占位结果',
+        'total_count': 0,
+        'detections': [],
+        'filename': image.filename,
+    }

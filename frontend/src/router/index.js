@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import MainLayout from '../views/MainLayout.vue'
 import ToolRecognitionView from '../views/modules/ToolRecognitionView.vue'
+import ToolCountView from '../views/modules/ToolCountView.vue'
 import PermissionManagementView from '../views/modules/PermissionManagementView.vue'
 import SystemSettingsView from '../views/modules/SystemSettingsView.vue'
 import { getSession } from '../auth/session'
@@ -20,6 +21,7 @@ const routes = [
     children: [
       { path: '', redirect: '/tool-recognition' },
       { path: 'tool-recognition', name: 'tool-recognition', component: ToolRecognitionView },
+      { path: 'tool-count', name: 'tool-count', component: ToolCountView },
       {
         path: 'permission-management',
         name: 'permission-management',
