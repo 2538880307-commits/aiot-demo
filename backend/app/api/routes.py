@@ -23,7 +23,7 @@ from app.schemas.user import (
 from app.services.ws_manager import ws_manager
 
 router = APIRouter()
-PERMISSION_OPTIONS = ['工具管理', '工具计数', '权限管理', '系统设置']
+PERMISSION_OPTIONS = ['工具管理', '工具识别', '权限管理', '系统设置']
 SETTING_PASSWORD_POLICY = 'password_policy'
 SETTING_ALERT_THRESHOLD = 'alert_threshold'
 

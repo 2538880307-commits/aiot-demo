@@ -11,7 +11,7 @@
         active-text-color="#ffffff"
       >
         <el-menu-item index="/tool-recognition">工具管理</el-menu-item>
-        <el-menu-item index="/tool-count">工具计数</el-menu-item>
+        <el-menu-item index="/tool-count">工具识别</el-menu-item>
         <el-menu-item index="/permission-management">权限管理</el-menu-item>
         <el-menu-item index="/system-settings">系统设置</el-menu-item>
       </el-menu>
@@ -45,7 +45,7 @@ const session = ref(getSession())
 
 const titleMap = {
   '/tool-recognition': '工具管理',
-  '/tool-count': '工具计数',
+  '/tool-count': '工具识别',
   '/permission-management': '权限管理',
   '/system-settings': '系统设置'
 }
