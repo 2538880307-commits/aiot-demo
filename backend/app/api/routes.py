@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, 
 from sqlalchemy import String, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.db import get_db
 from app.models.operation_log import OperationLog
 from app.models.system_setting import SystemSetting
@@ -20,6 +21,7 @@ from app.schemas.user import (
     UserPermissionsUpdate,
     UserUpdate,
 )
+from app.services.tool_count_service import tool_count_service
 from app.services.ws_manager import ws_manager
 
 router = APIRouter()
@@ -683,14 +685,24 @@ async def websocket_alerts(websocket: WebSocket):
 
 @router.post('/api/v1/tool-count/detect')
 async def detect_tool_count(image: UploadFile = File(...)) -> dict:
+    settings = get_settings()
+
     if not image.filename:
         raise HTTPException(status_code=400, detail='图片文件不能为空')
 
-    # 模型占位接口：已打通上传链路，后续替换为 YOLO 推理逻辑
-    return {
-        'ready': False,
-        'message': 'YOLO 模型尚未训练完成，当前返回占位结果',
-        'total_count': 0,
-        'detections': [],
-        'filename': image.filename,
-    }
+    image_bytes = await image.read()
+    max_size = settings.tool_count_max_image_mb * 1024 * 1024
+    if len(image_bytes) > max_size:
+        raise HTTPException(status_code=400, detail=f'图片大小不能超过 {settings.tool_count_max_image_mb}MB')
+
+    try:
+        return tool_count_service.detect(image_bytes, image.filename)
+    except RuntimeError as exc:
+        return {
+            'ready': False,
+            'message': str(exc),
+            'total_count': 0,
+            'by_class': {},
+            'detections': [],
+            'filename': image.filename,
+        }

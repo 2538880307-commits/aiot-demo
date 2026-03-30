@@ -121,3 +121,14 @@ Redis：
 - `POST /api/v1/tools/batch-delete`：批量删除（请求体：`{"ids":[1,2,3]}`）
 
 说明：数据库已新增 `tools` 表。后端启动时会自动建表并在空表时初始化示例数据。
+
+## 10. 工具识别（YOLO 模型）
+
+后端新增接口：`POST /api/v1/tool-count/detect`（`multipart/form-data`，字段名 `image`）。
+
+模型路径配置：
+
+- Docker：`TOOL_COUNT_MODEL_PATH=/app/model/best.pt`（`docker-compose.yml` 已挂载 `./best.pt`）
+- 本地开发：`TOOL_COUNT_MODEL_PATH=/Users/xiaoba/work/aiot-demo/best.pt`
+
+页面入口：登录后左侧菜单 `工具识别`，上传“检修前/检修后”两张图后可一键识别并比较数量差异。

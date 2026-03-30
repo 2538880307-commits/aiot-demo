@@ -18,7 +18,7 @@
             drag
             :show-file-list="false"
             :auto-upload="false"
-            :before-upload="(file) => beforeUpload(file, 'before')"
+            :on-change="(uploadFile) => handleUploadChange(uploadFile, 'before')"
             accept="image/png,image/jpg,image/jpeg"
           >
             <img v-if="beforeImage.url" :src="beforeImage.url" class="preview-image" alt="before" />
@@ -41,6 +41,15 @@
             <el-descriptions-item label="识别结果">{{ beforeResult.total_count }}</el-descriptions-item>
             <el-descriptions-item label="提示信息">{{ beforeResult.message || '尚未识别' }}</el-descriptions-item>
           </el-descriptions>
+
+          <div class="class-box">
+            <div class="class-title">分类统计</div>
+            <el-empty v-if="!beforeClassRows.length" description="暂无分类数据" :image-size="60" />
+            <el-table v-else :data="beforeClassRows" border size="small">
+              <el-table-column prop="label" label="工具类型" min-width="120" />
+              <el-table-column prop="count" label="数量" width="90" align="center" />
+            </el-table>
+          </div>
         </el-card>
 
         <el-card shadow="never" class="panel-card">
@@ -50,7 +59,7 @@
             drag
             :show-file-list="false"
             :auto-upload="false"
-            :before-upload="(file) => beforeUpload(file, 'after')"
+            :on-change="(uploadFile) => handleUploadChange(uploadFile, 'after')"
             accept="image/png,image/jpg,image/jpeg"
           >
             <img v-if="afterImage.url" :src="afterImage.url" class="preview-image" alt="after" />
@@ -73,6 +82,15 @@
             <el-descriptions-item label="识别结果">{{ afterResult.total_count }}</el-descriptions-item>
             <el-descriptions-item label="提示信息">{{ afterResult.message || '尚未识别' }}</el-descriptions-item>
           </el-descriptions>
+
+          <div class="class-box">
+            <div class="class-title">分类统计</div>
+            <el-empty v-if="!afterClassRows.length" description="暂无分类数据" :image-size="60" />
+            <el-table v-else :data="afterClassRows" border size="small">
+              <el-table-column prop="label" label="工具类型" min-width="120" />
+              <el-table-column prop="count" label="数量" width="90" align="center" />
+            </el-table>
+          </div>
         </el-card>
       </div>
 
@@ -122,6 +140,7 @@ const beforeResult = reactive({
   ready: false,
   message: '',
   total_count: 0,
+  by_class: {},
   detections: []
 })
 
@@ -129,8 +148,17 @@ const afterResult = reactive({
   ready: false,
   message: '',
   total_count: 0,
+  by_class: {},
   detections: []
 })
+
+const toClassRows = (result) => {
+  const items = Object.entries(result.by_class || {})
+  return items.map(([label, count]) => ({ label, count }))
+}
+
+const beforeClassRows = computed(() => toClassRows(beforeResult))
+const afterClassRows = computed(() => toClassRows(afterResult))
 
 const comparison = computed(() => {
   const beforeDetected = beforeImage.file && (beforeResult.message || beforeResult.total_count >= 0)
@@ -168,17 +196,22 @@ const comparison = computed(() => {
   }
 })
 
-const beforeUpload = (file, phase) => {
+const handleUploadChange = (uploadFile, phase) => {
+  const file = uploadFile?.raw || uploadFile
+  if (!file) {
+    return
+  }
+
   const isAllowed = ['image/png', 'image/jpg', 'image/jpeg'].includes(file.type)
   const isLt10M = file.size / 1024 / 1024 < 10
 
   if (!isAllowed) {
     ElMessage.error('仅支持 png/jpg/jpeg 格式')
-    return false
+    return
   }
   if (!isLt10M) {
     ElMessage.error('图片大小不能超过 10MB')
-    return false
+    return
   }
 
   const target = phase === 'before' ? beforeImage : afterImage
@@ -192,9 +225,10 @@ const beforeUpload = (file, phase) => {
   targetResult.ready = false
   targetResult.message = ''
   targetResult.total_count = 0
+  targetResult.by_class = {}
   targetResult.detections = []
 
-  return false
+  ElMessage.success(phase === 'before' ? '已选择检修前图片' : '已选择检修后图片')
 }
 
 const clearImage = (phase) => {
@@ -210,6 +244,7 @@ const clearImage = (phase) => {
   targetResult.ready = false
   targetResult.message = ''
   targetResult.total_count = 0
+  targetResult.by_class = {}
   targetResult.detections = []
 }
 
@@ -235,6 +270,7 @@ const runDetection = async (phase) => {
     targetResult.ready = !!data.ready
     targetResult.message = data.message || ''
     targetResult.total_count = data.total_count || 0
+    targetResult.by_class = data.by_class || {}
     targetResult.detections = data.detections || []
 
     if (!data.ready) {
@@ -295,6 +331,16 @@ const runBothDetection = async () => {
 
 .result-box {
   margin-top: 12px;
+}
+
+.class-box {
+  margin-top: 12px;
+}
+
+.class-title {
+  margin-bottom: 8px;
+  color: #334155;
+  font-weight: 600;
 }
 
 .summary-card {

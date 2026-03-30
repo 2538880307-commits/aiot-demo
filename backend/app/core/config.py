@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     mqtt_topic_detect: str = 'rail/line1/siteA/detect'
     mqtt_topic_alert: str = 'rail/line1/siteA/alert'
 
+    tool_count_model_path: str = '/app/model/best.pt'
+    tool_count_conf: float = 0.25
+    tool_count_iou: float = 0.45
+    tool_count_max_image_mb: int = 10
+
     @property
     def database_url(self) -> str:
         return (
