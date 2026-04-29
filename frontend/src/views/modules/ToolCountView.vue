@@ -45,13 +45,7 @@
           <div class="class-box">
             <div class="class-title">分类统计</div>
             <el-empty v-if="!beforeClassRows.length" description="暂无分类数据" :image-size="60" />
-            <el-table
-              v-else
-              :data="beforeClassRows"
-              border
-              size="small"
-              :row-class-name="({ row }) => (row.isDifferent ? 'diff-row' : '')"
-            >
+            <el-table v-else :data="beforeClassRows" border size="small">
               <el-table-column prop="label" label="工具类型" min-width="120" />
               <el-table-column prop="count" label="数量" width="90" align="center" />
             </el-table>
@@ -92,13 +86,7 @@
           <div class="class-box">
             <div class="class-title">分类统计</div>
             <el-empty v-if="!afterClassRows.length" description="暂无分类数据" :image-size="60" />
-            <el-table
-              v-else
-              :data="afterClassRows"
-              border
-              size="small"
-              :row-class-name="({ row }) => (row.isDifferent ? 'diff-row' : '')"
-            >
+            <el-table v-else :data="afterClassRows" border size="small">
               <el-table-column prop="label" label="工具类型" min-width="120" />
               <el-table-column prop="count" label="数量" width="90" align="center" />
             </el-table>
@@ -114,14 +102,7 @@
           <div class="summary-item">检修后工具数量：<strong>{{ afterResult.total_count }}</strong></div>
         </div>
 
-        <el-alert
-          :title="comparison.title"
-          :description="comparison.desc"
-          :type="comparison.type"
-          :class="['comparison-alert', comparisonAlertClass]"
-          :closable="false"
-          show-icon
-        />
+        <el-alert :title="comparison.title" :description="comparison.desc" :type="comparison.type" :closable="false" show-icon />
 
         <div class="summary-actions">
           <el-button
@@ -134,20 +115,41 @@
           </el-button>
         </div>
       </el-card>
+
+      <el-card v-if="isAdmin" shadow="never" class="log-card">
+        <template #header>工具识别日志（最近 20 条）</template>
+        <el-table :data="recognitionLogs" border :loading="logLoading">
+          <el-table-column prop="timestamp" label="时间" min-width="180" />
+          <el-table-column prop="action" label="动作" width="110" />
+          <el-table-column prop="actor" label="操作人" width="100" />
+          <el-table-column prop="target" label="图片" min-width="160" />
+          <el-table-column label="详情" min-width="260">
+            <template #default="{ row }">
+              <span class="json-text">{{ JSON.stringify(row.detail_json || {}) }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { computed, reactive } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { http } from '../../api/http'
+import { getSession } from '../../auth/session'
+
+const session = getSession()
+const isAdmin = computed(() => session?.roleKey === 'admin' || session?.username === 'admin')
 
 const beforeImage = reactive({ file: null, url: '' })
 const afterImage = reactive({ file: null, url: '' })
 
 const loading = reactive({ before: false, after: false })
+const recognitionLogs = ref([])
+const logLoading = ref(false)
 
 const beforeResult = reactive({
   ready: false,
@@ -165,11 +167,7 @@ const afterResult = reactive({
   detections: []
 })
 
-const toClassRows = (result) => {
-  const items = Object.entries(result.by_class || {})
-  return items.map(([label, count]) => ({ label, count }))
-}
-
+const toClassRows = (result) => Object.entries(result.by_class || {}).map(([label, count]) => ({ label, count }))
 const beforeClassRows = computed(() => toClassRows(beforeResult))
 const afterClassRows = computed(() => toClassRows(afterResult))
 
@@ -193,7 +191,6 @@ const comparison = computed(() => {
       desc: '检修后识别数量少于检修前，请立即复核并确认工具去向。'
     }
   }
-
   if (diff === 0) {
     return {
       type: 'success',
@@ -201,7 +198,6 @@ const comparison = computed(() => {
       desc: '检修前后识别数量相同。'
     }
   }
-
   return {
     type: 'warning',
     title: `检修后数量多出 ${Math.abs(diff)} 件`,
@@ -211,9 +207,7 @@ const comparison = computed(() => {
 
 const handleUploadChange = (uploadFile, phase) => {
   const file = uploadFile?.raw || uploadFile
-  if (!file) {
-    return
-  }
+  if (!file) return
 
   const isAllowed = ['image/png', 'image/jpg', 'image/jpeg'].includes(file.type)
   const isLt10M = file.size / 1024 / 1024 < 10
@@ -228,9 +222,7 @@ const handleUploadChange = (uploadFile, phase) => {
   }
 
   const target = phase === 'before' ? beforeImage : afterImage
-  if (target.url) {
-    URL.revokeObjectURL(target.url)
-  }
+  if (target.url) URL.revokeObjectURL(target.url)
   target.file = file
   target.url = URL.createObjectURL(file)
 
@@ -248,9 +240,7 @@ const clearImage = (phase) => {
   const target = phase === 'before' ? beforeImage : afterImage
   const targetResult = phase === 'before' ? beforeResult : afterResult
 
-  if (target.url) {
-    URL.revokeObjectURL(target.url)
-  }
+  if (target.url) URL.revokeObjectURL(target.url)
   target.file = null
   target.url = ''
 
@@ -259,6 +249,26 @@ const clearImage = (phase) => {
   targetResult.total_count = 0
   targetResult.by_class = {}
   targetResult.detections = []
+}
+
+const fetchRecognitionLogs = async () => {
+  if (!isAdmin.value) return
+  logLoading.value = true
+  try {
+    const { data } = await http.get('/api/v1/settings/operation-logs', {
+      params: {
+        requester_username: session.username,
+        module: '工具识别',
+        page: 1,
+        page_size: 20
+      }
+    })
+    recognitionLogs.value = data.items || []
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.detail || '加载工具识别日志失败')
+  } finally {
+    logLoading.value = false
+  }
 }
 
 const runDetection = async (phase) => {
@@ -277,6 +287,7 @@ const runDetection = async (phase) => {
     formData.append('image', target.file)
 
     const { data } = await http.post('/api/v1/tool-count/detect', formData, {
+      params: { requester_username: session?.username || 'system' },
       headers: { 'Content-Type': 'multipart/form-data' }
     })
 
@@ -293,6 +304,9 @@ const runDetection = async (phase) => {
     ElMessage.error(error?.response?.data?.detail || '识别请求失败')
   } finally {
     loading[loadingKey] = false
+    if (isAdmin.value) {
+      await fetchRecognitionLogs()
+    }
   }
 }
 
@@ -300,6 +314,12 @@ const runBothDetection = async () => {
   await runDetection('before')
   await runDetection('after')
 }
+
+onMounted(async () => {
+  if (isAdmin.value) {
+    await fetchRecognitionLogs()
+  }
+})
 </script>
 
 <style scoped>
@@ -373,6 +393,10 @@ const runBothDetection = async () => {
 
 .summary-actions {
   margin-top: 12px;
+}
+
+.log-card {
+  margin-top: 14px;
 }
 
 @media (max-width: 1000px) {
