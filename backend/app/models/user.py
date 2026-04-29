@@ -14,4 +14,5 @@ class User(Base):
     department: Mapped[str] = mapped_column(String(128), index=True)
     position: Mapped[str] = mapped_column(String(128))
     role: Mapped[str] = mapped_column(String(32), default='employee', index=True)
+    password_hash: Mapped[str | None] = mapped_column(String(256), nullable=True)
     permissions: Mapped[list[str]] = mapped_column(JSON, default=list)

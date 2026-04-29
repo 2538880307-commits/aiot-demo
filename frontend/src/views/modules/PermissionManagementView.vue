@@ -103,6 +103,12 @@
         <el-form-item label="职位" prop="position">
           <el-input v-model="form.position" placeholder="请输入职位" />
         </el-form-item>
+        <el-form-item v-if="userDialog.mode === 'create'" label="登录密码" prop="password">
+          <el-input v-model="form.password" type="password" show-password placeholder="请输入登录密码" />
+        </el-form-item>
+        <el-form-item v-if="userDialog.mode === 'create'" label="确认密码" prop="confirmPassword">
+          <el-input v-model="form.confirmPassword" type="password" show-password placeholder="请再次输入密码" />
+        </el-form-item>
         <el-form-item label="角色" prop="role">
           <el-select v-model="form.role" class="full-input">
             <el-option label="管理员" value="admin" />
@@ -159,8 +165,26 @@ const form = reactive({
   name: '',
   department: '',
   position: '',
-  role: 'employee'
+  role: 'employee',
+  password: '',
+  confirmPassword: ''
 })
+
+const validateConfirmPassword = (_rule, value, callback) => {
+  if (userDialog.mode !== 'create') {
+    callback()
+    return
+  }
+  if (!value) {
+    callback(new Error('请输入确认密码'))
+    return
+  }
+  if (value !== form.password) {
+    callback(new Error('两次输入的密码不一致'))
+    return
+  }
+  callback()
+}
 
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
@@ -168,7 +192,12 @@ const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   department: [{ required: true, message: '请输入部门', trigger: 'blur' }],
   position: [{ required: true, message: '请输入职位', trigger: 'blur' }],
-  role: [{ required: true, message: '请选择角色', trigger: 'change' }]
+  role: [{ required: true, message: '请选择角色', trigger: 'change' }],
+  password: [
+    { required: true, message: '请输入登录密码', trigger: 'blur' },
+    { min: 6, message: '密码长度至少 6 位', trigger: 'blur' }
+  ],
+  confirmPassword: [{ validator: validateConfirmPassword, trigger: 'blur' }]
 }
 
 const fetchPermissionOptions = async () => {
@@ -241,6 +270,8 @@ const resetForm = () => {
   form.department = ''
   form.position = ''
   form.role = 'employee'
+  form.password = ''
+  form.confirmPassword = ''
 }
 
 const openCreateDialog = () => {
@@ -257,6 +288,8 @@ const openEditDialog = (row) => {
   form.department = row.department
   form.position = row.position
   form.role = row.role
+  form.password = ''
+  form.confirmPassword = ''
   userDialog.mode = 'edit'
   userDialog.visible = true
 }
@@ -299,7 +332,11 @@ const submitUserForm = async () => {
 
   try {
     if (userDialog.mode === 'create') {
-      await http.post('/api/v1/users', { ...payload, permissions: [] }, { params: { requester_username: session.username } })
+      await http.post(
+        '/api/v1/users',
+        { ...payload, password: form.password, permissions: [] },
+        { params: { requester_username: session.username } }
+      )
       ElMessage.success('新增用户成功')
     } else {
       await http.put(`/api/v1/users/${form.id}`, payload, { params: { requester_username: session.username } })
@@ -421,17 +458,7 @@ onMounted(async () => {
 
 .my-perms-title {
   margin-bottom: 10px;
-  font-size: 16px;
+  color: #334155;
   font-weight: 600;
-}
-
-@media (max-width: 768px) {
-  .toolbar {
-    flex-wrap: wrap;
-  }
-
-  .pager {
-    justify-content: center;
-  }
 }
 </style>

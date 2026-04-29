@@ -42,8 +42,8 @@
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { loginWithDefaultAccount } from '../auth/defaultAccounts'
 import { setSession } from '../auth/session'
+import { http } from '../api/http'
 
 const router = useRouter()
 const formRef = ref(null)
@@ -67,15 +67,26 @@ const handleLogin = async () => {
 
   loading.value = true
   try {
-    const session = loginWithDefaultAccount(form.username, form.password)
-    if (!session) {
-      ElMessage.error('用户名或密码错误')
-      return
+    const { data } = await http.post('/api/v1/auth/login', {
+      username: form.username,
+      password: form.password
+    })
+
+    const session = {
+      username: data.username,
+      employeeNo: data.employee_no,
+      displayName: data.display_name || data.name || data.username,
+      role: data.role === 'admin' ? '管理员' : '员工',
+      roleKey: data.role_key || data.role,
+      permissions: data.permissions || [],
+      loginAt: data.login_at
     }
 
     setSession(session)
     ElMessage.success(`欢迎，${session.displayName}`)
     router.replace('/')
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.detail || '登录失败')
   } finally {
     loading.value = false
   }

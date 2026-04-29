@@ -21,6 +21,7 @@ from app.schemas.user import (
     UserPermissionsUpdate,
     UserUpdate,
 )
+from app.services.password_service import hash_password, verify_password
 from app.services.tool_count_service import tool_count_service
 from app.services.ws_manager import ws_manager
 
@@ -75,6 +76,35 @@ async def get_setting_value(db: AsyncSession, key: str, fallback: dict) -> dict:
 @router.get('/health', response_model=HealthResponse)
 async def health_check() -> HealthResponse:
     return HealthResponse(status='ok', service='backend')
+
+
+@router.post('/api/v1/auth/login')
+async def login(payload: dict, db: AsyncSession = Depends(get_db)) -> dict:
+    username = str(payload.get('username', '')).strip()
+    password = str(payload.get('password', ''))
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail='用户名和密码不能为空')
+
+    user = await db.scalar(select(User).where(User.username == username))
+    if not user:
+        raise HTTPException(status_code=401, detail='用户名或密码错误')
+
+    if not user.password_hash or not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=401, detail='用户名或密码错误')
+
+    return {
+        'username': user.username,
+        'employee_no': user.employee_no,
+        'name': user.name,
+        'department': user.department,
+        'position': user.position,
+        'role': user.role,
+        'permissions': user.permissions or [],
+        'role_key': user.role,
+        'display_name': user.name,
+        'login_at': datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get('/api/v1/stats')
@@ -420,7 +450,11 @@ async def create_user(
         raise HTTPException(status_code=409, detail='工号已存在')
 
     permissions = [perm for perm in payload.permissions if perm in PERMISSION_OPTIONS]
-    user = User(**payload.model_dump(exclude={'permissions'}), permissions=permissions)
+    user = User(
+        **payload.model_dump(exclude={'permissions', 'password'}),
+        password_hash=hash_password(payload.password),
+        permissions=permissions,
+    )
     db.add(user)
     await db.commit()
     await db.refresh(user)
