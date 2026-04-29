@@ -47,7 +47,7 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - ./best.pt:/app/model/best.pt:ro
+      - ./best_tools.pt:/app/model/best.pt:ro
     ports:
       - "8000:8000"
     depends_on:

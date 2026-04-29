@@ -45,7 +45,13 @@
           <div class="class-box">
             <div class="class-title">分类统计</div>
             <el-empty v-if="!beforeClassRows.length" description="暂无分类数据" :image-size="60" />
-            <el-table v-else :data="beforeClassRows" border size="small">
+            <el-table
+              v-else
+              :data="beforeClassRows"
+              border
+              size="small"
+              :row-class-name="({ row }) => (row.isDifferent ? 'diff-row' : '')"
+            >
               <el-table-column prop="label" label="工具类型" min-width="120" />
               <el-table-column prop="count" label="数量" width="90" align="center" />
             </el-table>
@@ -86,7 +92,13 @@
           <div class="class-box">
             <div class="class-title">分类统计</div>
             <el-empty v-if="!afterClassRows.length" description="暂无分类数据" :image-size="60" />
-            <el-table v-else :data="afterClassRows" border size="small">
+            <el-table
+              v-else
+              :data="afterClassRows"
+              border
+              size="small"
+              :row-class-name="({ row }) => (row.isDifferent ? 'diff-row' : '')"
+            >
               <el-table-column prop="label" label="工具类型" min-width="120" />
               <el-table-column prop="count" label="数量" width="90" align="center" />
             </el-table>
@@ -106,6 +118,7 @@
           :title="comparison.title"
           :description="comparison.desc"
           :type="comparison.type"
+          :class="['comparison-alert', comparisonAlertClass]"
           :closable="false"
           show-icon
         />

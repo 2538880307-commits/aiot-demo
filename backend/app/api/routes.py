@@ -718,21 +718,55 @@ async def websocket_alerts(websocket: WebSocket):
         ws_manager.disconnect(websocket)
 
 @router.post('/api/v1/tool-count/detect')
-async def detect_tool_count(image: UploadFile = File(...)) -> dict:
+async def detect_tool_count(
+    image: UploadFile = File(...),
+    requester_username: str = Query(default='system'),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
     settings = get_settings()
+    actor = requester_username.strip() or 'system'
 
     if not image.filename:
+        await append_log(
+            db,
+            module='工具识别',
+            action='识别失败',
+            actor=actor,
+            target='upload',
+            detail={'reason': 'empty_filename'},
+        )
         raise HTTPException(status_code=400, detail='图片文件不能为空')
 
     image_bytes = await image.read()
     max_size = settings.tool_count_max_image_mb * 1024 * 1024
     if len(image_bytes) > max_size:
+        await append_log(
+            db,
+            module='工具识别',
+            action='识别失败',
+            actor=actor,
+            target=image.filename,
+            detail={'reason': 'image_too_large', 'size': len(image_bytes), 'max_size': max_size},
+        )
         raise HTTPException(status_code=400, detail=f'图片大小不能超过 {settings.tool_count_max_image_mb}MB')
 
     try:
-        return tool_count_service.detect(image_bytes, image.filename)
+        result = tool_count_service.detect(image_bytes, image.filename)
+        await append_log(
+            db,
+            module='工具识别',
+            action='识别成功',
+            actor=actor,
+            target=image.filename,
+            detail={
+                'ready': bool(result.get('ready', False)),
+                'total_count': int(result.get('total_count', 0) or 0),
+                'by_class': result.get('by_class', {}),
+            },
+        )
+        return result
     except RuntimeError as exc:
-        return {
+        result = {
             'ready': False,
             'message': str(exc),
             'total_count': 0,
@@ -740,3 +774,12 @@ async def detect_tool_count(image: UploadFile = File(...)) -> dict:
             'detections': [],
             'filename': image.filename,
         }
+        await append_log(
+            db,
+            module='工具识别',
+            action='识别失败',
+            actor=actor,
+            target=image.filename,
+            detail={'reason': 'runtime_error', 'message': str(exc)},
+        )
+        return result
