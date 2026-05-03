@@ -114,8 +114,10 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { http } from '../../api/http'
+import { getSession } from '../../auth/session'
 
 const typeOptions = ref([])
+const session = getSession()
 
 const query = reactive({
   toolCode: '',
@@ -173,6 +175,7 @@ const fetchTools = async () => {
   try {
     const { data } = await http.get('/api/v1/tools', {
       params: {
+        requester_username: session?.username || '',
         tool_code: query.toolCode,
         tool_type: query.toolType,
         tool_name: query.toolName,
@@ -266,10 +269,10 @@ const submitForm = async () => {
 
   try {
     if (dialog.mode === 'create') {
-      await http.post('/api/v1/tools', payload)
+      await http.post('/api/v1/tools', payload, { params: { requester_username: session?.username || '' } })
       ElMessage.success('新增成功')
     } else {
-      await http.put(`/api/v1/tools/${form.id}`, payload)
+      await http.put(`/api/v1/tools/${form.id}`, payload, { params: { requester_username: session?.username || '' } })
       ElMessage.success('修改成功')
     }
 
@@ -283,7 +286,7 @@ const submitForm = async () => {
 const deleteOne = async (row) => {
   try {
     await ElMessageBox.confirm(`确认删除工具 ${row.tool_code} 吗？`, '提示', { type: 'warning' })
-    await http.delete(`/api/v1/tools/${row.id}`)
+    await http.delete(`/api/v1/tools/${row.id}`, { params: { requester_username: session?.username || '' } })
     ElMessage.success('删除成功')
     await fetchTools()
   } catch (error) {
@@ -305,7 +308,7 @@ const deleteBySelection = async () => {
     })
     await http.post('/api/v1/tools/batch-delete', {
       ids: selectedRows.value.map((item) => item.id)
-    })
+    }, { params: { requester_username: session?.username || '' } })
     selectedRows.value = []
     ElMessage.success('批量删除成功')
     await fetchTools()
@@ -320,6 +323,7 @@ const exportCsv = async () => {
   try {
     const { data } = await http.get('/api/v1/tools', {
       params: {
+        requester_username: session?.username || '',
         tool_code: query.toolCode,
         tool_type: query.toolType,
         tool_name: query.toolName,

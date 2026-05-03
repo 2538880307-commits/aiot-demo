@@ -10,10 +10,10 @@
         text-color="#b8c9dd"
         active-text-color="#ffffff"
       >
-        <el-menu-item index="/tool-recognition">工具管理</el-menu-item>
-        <el-menu-item index="/tool-count">工具识别</el-menu-item>
-        <el-menu-item index="/permission-management">权限管理</el-menu-item>
-        <el-menu-item index="/system-settings">系统设置</el-menu-item>
+        <el-menu-item v-if="hasPermission('工具管理')" index="/tool-recognition">工具管理</el-menu-item>
+        <el-menu-item v-if="hasPermission('工具识别')" index="/tool-count">工具识别</el-menu-item>
+        <el-menu-item v-if="hasPermission('权限管理')" index="/permission-management">权限管理</el-menu-item>
+        <el-menu-item v-if="hasPermission('系统设置')" index="/system-settings">系统设置</el-menu-item>
       </el-menu>
     </aside>
 
@@ -44,6 +44,7 @@ const router = useRouter()
 const session = ref(getSession())
 
 const titleMap = {
+  '/no-permission': '无权限',
   '/tool-recognition': '工具管理',
   '/tool-count': '工具识别',
   '/permission-management': '权限管理',
@@ -51,6 +52,12 @@ const titleMap = {
 }
 
 const activeMenu = computed(() => route.path)
+const hasPermission = (perm) => {
+  if (!session.value) return false
+  if (session.value.roleKey === 'admin' || session.value.username === 'admin') return true
+  return (session.value.permissions || []).includes(perm)
+}
+
 const pageTitle = computed(() => titleMap[route.path] || '控制台')
 
 const logout = () => {

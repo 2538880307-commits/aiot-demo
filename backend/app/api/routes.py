@@ -40,6 +40,18 @@ async def require_admin(requester_username: str, db: AsyncSession) -> User:
     return requester
 
 
+
+
+async def require_permission(requester_username: str, permission: str, db: AsyncSession) -> User:
+    requester = await db.scalar(select(User).where(User.username == requester_username))
+    if not requester:
+        raise HTTPException(status_code=404, detail='请求用户不存在')
+    if requester.role == 'admin':
+        return requester
+    if permission not in (requester.permissions or []):
+        raise HTTPException(status_code=403, detail=f'缺少权限：{permission}')
+    return requester
+
 async def append_log(
     db: AsyncSession,
     module: str,
@@ -581,6 +593,7 @@ async def get_my_permissions(username: str = Query(...), db: AsyncSession = Depe
 
 @router.get('/api/v1/tools', response_model=ToolListResponse)
 async def list_tools(
+    requester_username: str = Query(...),
     tool_code: str = Query(default=''),
     tool_type: str = Query(default=''),
     tool_name: str = Query(default=''),
@@ -589,6 +602,7 @@ async def list_tools(
     page_size: int = Query(default=10, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> ToolListResponse:
+    await require_permission(requester_username, '工具管理', db)
     query = select(Tool)
 
     if tool_code:
@@ -610,7 +624,12 @@ async def list_tools(
 
 
 @router.post('/api/v1/tools', response_model=ToolOut)
-async def create_tool(payload: ToolCreate, db: AsyncSession = Depends(get_db)) -> ToolOut:
+async def create_tool(
+    payload: ToolCreate,
+    requester_username: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> ToolOut:
+    await require_permission(requester_username, '工具管理', db)
     exists = await db.scalar(select(Tool).where(Tool.tool_code == payload.tool_code))
     if exists:
         raise HTTPException(status_code=409, detail='工具编码已存在')
@@ -628,7 +647,7 @@ async def create_tool(payload: ToolCreate, db: AsyncSession = Depends(get_db)) -
         db,
         module='工具管理',
         action='新增工具',
-        actor='system',
+        actor=requester_username,
         target=tool.tool_code,
         detail={'tool_id': tool.id},
     )
@@ -636,7 +655,13 @@ async def create_tool(payload: ToolCreate, db: AsyncSession = Depends(get_db)) -
 
 
 @router.put('/api/v1/tools/{tool_id}', response_model=ToolOut)
-async def update_tool(tool_id: int, payload: ToolUpdate, db: AsyncSession = Depends(get_db)) -> ToolOut:
+async def update_tool(
+    tool_id: int,
+    payload: ToolUpdate,
+    requester_username: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> ToolOut:
+    await require_permission(requester_username, '工具管理', db)
     tool = await db.get(Tool, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail='工具不存在')
@@ -659,7 +684,7 @@ async def update_tool(tool_id: int, payload: ToolUpdate, db: AsyncSession = Depe
         db,
         module='工具管理',
         action='修改工具',
-        actor='system',
+        actor=requester_username,
         target=tool.tool_code,
         detail={'tool_id': tool.id},
     )
@@ -667,7 +692,12 @@ async def update_tool(tool_id: int, payload: ToolUpdate, db: AsyncSession = Depe
 
 
 @router.delete('/api/v1/tools/{tool_id}')
-async def delete_tool(tool_id: int, db: AsyncSession = Depends(get_db)) -> dict:
+async def delete_tool(
+    tool_id: int,
+    requester_username: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await require_permission(requester_username, '工具管理', db)
     tool = await db.get(Tool, tool_id)
     if not tool:
         raise HTTPException(status_code=404, detail='工具不存在')
@@ -680,7 +710,7 @@ async def delete_tool(tool_id: int, db: AsyncSession = Depends(get_db)) -> dict:
         db,
         module='工具管理',
         action='删除工具',
-        actor='system',
+        actor=requester_username,
         target=code,
         detail={'tool_id': tool_id},
     )
@@ -688,7 +718,12 @@ async def delete_tool(tool_id: int, db: AsyncSession = Depends(get_db)) -> dict:
 
 
 @router.post('/api/v1/tools/batch-delete')
-async def batch_delete_tools(payload: dict, db: AsyncSession = Depends(get_db)) -> dict:
+async def batch_delete_tools(
+    payload: dict,
+    requester_username: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    await require_permission(requester_username, '工具管理', db)
     ids = payload.get('ids', [])
     if not isinstance(ids, list) or not ids:
         raise HTTPException(status_code=400, detail='ids 不能为空')
@@ -700,7 +735,7 @@ async def batch_delete_tools(payload: dict, db: AsyncSession = Depends(get_db)) 
         db,
         module='工具管理',
         action='批量删除工具',
-        actor='system',
+        actor=requester_username,
         target='batch',
         detail={'ids': ids},
     )
@@ -725,6 +760,7 @@ async def detect_tool_count(
 ) -> dict:
     settings = get_settings()
     actor = requester_username.strip() or 'system'
+    await require_permission(actor, '工具识别', db)
 
     if not image.filename:
         await append_log(

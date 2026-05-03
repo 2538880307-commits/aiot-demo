@@ -43,11 +43,26 @@
           </el-descriptions>
 
           <div class="class-box">
-            <div class="class-title">分类统计</div>
+            <div class="class-title">分类统计（检修前）</div>
             <el-empty v-if="!beforeClassRows.length" description="暂无分类数据" :image-size="60" />
             <el-table v-else :data="beforeClassRows" border size="small">
-              <el-table-column prop="label" label="工具类型" min-width="120" />
-              <el-table-column prop="count" label="数量" width="90" align="center" />
+              <el-table-column prop="label" label="工具类型" min-width="120">
+                <template #default="{ row }">
+                  <span :class="{ 'diff-red': row.diff !== 0 }">{{ row.label }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="count" label="数量" width="90" align="center">
+                <template #default="{ row }">
+                  <span :class="{ 'diff-red': row.diff !== 0 }">{{ row.count }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="对比" min-width="120">
+                <template #default="{ row }">
+                  <span v-if="row.diff > 0" class="diff-red">检修后少 {{ row.diff }}</span>
+                  <span v-else-if="row.diff < 0" class="diff-red">检修后多 {{ Math.abs(row.diff) }}</span>
+                  <span v-else>一致</span>
+                </template>
+              </el-table-column>
             </el-table>
           </div>
         </el-card>
@@ -84,11 +99,26 @@
           </el-descriptions>
 
           <div class="class-box">
-            <div class="class-title">分类统计</div>
+            <div class="class-title">分类统计（检修后）</div>
             <el-empty v-if="!afterClassRows.length" description="暂无分类数据" :image-size="60" />
             <el-table v-else :data="afterClassRows" border size="small">
-              <el-table-column prop="label" label="工具类型" min-width="120" />
-              <el-table-column prop="count" label="数量" width="90" align="center" />
+              <el-table-column prop="label" label="工具类型" min-width="120">
+                <template #default="{ row }">
+                  <span :class="{ 'diff-red': row.diff !== 0 }">{{ row.label }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="count" label="数量" width="90" align="center">
+                <template #default="{ row }">
+                  <span :class="{ 'diff-red': row.diff !== 0 }">{{ row.count }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="对比" min-width="120">
+                <template #default="{ row }">
+                  <span v-if="row.diff > 0" class="diff-red">检修后少 {{ row.diff }}</span>
+                  <span v-else-if="row.diff < 0" class="diff-red">检修后多 {{ Math.abs(row.diff) }}</span>
+                  <span v-else>一致</span>
+                </template>
+              </el-table-column>
             </el-table>
           </div>
         </el-card>
@@ -114,6 +144,23 @@
             一键识别并比较
           </el-button>
         </div>
+      </el-card>
+
+      <el-card shadow="never" class="summary-card">
+        <template #header>分类差异明细（红色为异常）</template>
+        <el-empty v-if="!diffRows.length" description="请先完成前后两张图片识别" :image-size="60" />
+        <el-table v-else :data="diffRows" border>
+          <el-table-column prop="label" label="工具类型" min-width="140" />
+          <el-table-column prop="before" label="检修前" width="110" align="center" />
+          <el-table-column prop="after" label="检修后" width="110" align="center" />
+          <el-table-column label="变化" min-width="180">
+            <template #default="{ row }">
+              <span v-if="row.delta > 0" class="diff-red">缺失 {{ row.delta }}（检修后更少）</span>
+              <span v-else-if="row.delta < 0" class="diff-red">新增 {{ Math.abs(row.delta) }}（检修后更多）</span>
+              <span>一致</span>
+            </template>
+          </el-table-column>
+        </el-table>
       </el-card>
 
       <el-card v-if="isAdmin" shadow="never" class="log-card">
@@ -167,9 +214,38 @@ const afterResult = reactive({
   detections: []
 })
 
-const toClassRows = (result) => Object.entries(result.by_class || {}).map(([label, count]) => ({ label, count }))
-const beforeClassRows = computed(() => toClassRows(beforeResult))
-const afterClassRows = computed(() => toClassRows(afterResult))
+const beforeMap = computed(() => beforeResult.by_class || {})
+const afterMap = computed(() => afterResult.by_class || {})
+
+const allLabels = computed(() => {
+  const set = new Set([...Object.keys(beforeMap.value), ...Object.keys(afterMap.value)])
+  return Array.from(set)
+})
+
+const diffRows = computed(() => {
+  if (!allLabels.value.length) return []
+  return allLabels.value
+    .map((label) => {
+      const before = Number(beforeMap.value[label] || 0)
+      const after = Number(afterMap.value[label] || 0)
+      return { label, before, after, delta: before - after }
+    })
+    .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
+})
+
+const beforeClassRows = computed(() => {
+  return Object.entries(beforeMap.value).map(([label, count]) => {
+    const diff = Number(count) - Number(afterMap.value[label] || 0)
+    return { label, count, diff }
+  })
+})
+
+const afterClassRows = computed(() => {
+  return Object.entries(afterMap.value).map(([label, count]) => {
+    const diff = Number(beforeMap.value[label] || 0) - Number(count)
+    return { label, count, diff }
+  })
+})
 
 const comparison = computed(() => {
   const beforeDetected = beforeImage.file && (beforeResult.message || beforeResult.total_count >= 0)
@@ -397,6 +473,11 @@ onMounted(async () => {
 
 .log-card {
   margin-top: 14px;
+}
+
+.diff-red {
+  color: #dc2626;
+  font-weight: 600;
 }
 
 @media (max-width: 1000px) {
