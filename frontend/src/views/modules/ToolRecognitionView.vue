@@ -321,40 +321,68 @@ const deleteBySelection = async () => {
 
 const exportCsv = async () => {
   try {
-    const { data } = await http.get('/api/v1/tools', {
-      params: {
-        requester_username: session?.username || '',
-        tool_code: query.toolCode,
-        tool_type: query.toolType,
-        tool_name: query.toolName,
-        stock: query.stock,
-        page: 1,
-        page_size: 1000
+    let exportItems = []
+
+    if (selectedRows.value.length > 0) {
+      exportItems = selectedRows.value
+    } else {
+      if (!session?.username) {
+        throw new Error('登录状态已失效，请重新登录后再导出')
       }
-    })
+      const pageSize = 100
+      let page = 1
+      let total = 0
+
+      do {
+        const { data } = await http.get('/api/v1/tools', {
+          params: {
+            requester_username: session?.username || '',
+            tool_code: query.toolCode,
+            tool_type: query.toolType,
+            tool_name: query.toolName,
+            stock: query.stock,
+            page,
+            page_size: pageSize
+          }
+        })
+
+        const items = data.items || []
+        total = Number(data.total || 0)
+        exportItems.push(...items)
+        page += 1
+      } while (exportItems.length < total)
+    }
 
     const headers = ['工具编码', '工具类型', '工具名称', '库存', '维护组']
-    const rows = (data.items || []).map((item) => [
-      item.tool_code,
-      item.tool_type,
-      item.tool_name,
-      String(item.stock),
-      item.team
+    const rows = exportItems.map((item) => [
+      item.tool_code ?? '',
+      item.tool_type ?? '',
+      item.tool_name ?? '',
+      String(item.stock ?? ''),
+      item.team ?? ''
     ])
 
     const csv = [headers, ...rows]
       .map((line) => line.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n')
 
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
+    const objectUrl = URL.createObjectURL(blob)
+    link.href = objectUrl
     link.download = `工具管理_${new Date().toISOString().slice(0, 10)}.csv`
+    link.style.display = 'none'
+    document.body.appendChild(link)
     link.click()
-    URL.revokeObjectURL(link.href)
-    ElMessage.success('导出成功')
-  } catch {
-    ElMessage.error('导出失败')
+    document.body.removeChild(link)
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000)
+    ElMessage.success(selectedRows.value.length > 0 ? '导出勾选数据成功' : '导出成功')
+  } catch (error) {
+    const message = error?.response?.data?.detail || error?.message || '导出失败'
+    ElMessage.error(message)
+    // 便于本地调试浏览器控制台定位问题
+    // eslint-disable-next-line no-console
+    console.error('exportCsv failed:', error)
   }
 }
 

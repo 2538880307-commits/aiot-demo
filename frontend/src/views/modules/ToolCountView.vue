@@ -339,12 +339,31 @@ const fetchRecognitionLogs = async () => {
         page_size: 20
       }
     })
-    recognitionLogs.value = data.items || []
+    recognitionLogs.value = (data.items || []).map((item) => ({
+      ...item,
+      timestamp: formatShanghaiTime(item.timestamp)
+    }))
   } catch (error) {
     ElMessage.error(error?.response?.data?.detail || '加载工具识别日志失败')
   } finally {
     logLoading.value = false
   }
+}
+
+const formatShanghaiTime = (value) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).format(date)
 }
 
 const runDetection = async (phase) => {
